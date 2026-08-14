@@ -10,6 +10,11 @@
   3. Revenir sur `main` et mettre à jour l'arbre local : `git checkout main && git pull origin main`.
 - **Zéro travail résiduel non-fusionné** : Vérifier systématiquement `git status` pour s'assurer que le workspace est propre, aligné sur `main` à jour et sans branche locale orpheline.
 
+## Manipulation des fichiers (Obligatoire)
+
+- **Outils natifs exclusifs** : Utiliser impérativement les outils natifs de l'agent (`write_to_file` pour créer/écraser un fichier du workspace et `replace_file_content` pour modifier des blocs de lignes ciblés).
+- **Interdiction de `cat` / `echo` via shell** : Ne jamais utiliser de commandes terminales (`cat << 'EOF' > ...`, `echo > ...`, `sed`, `awk`) pour écrire ou éditer des fichiers dans le workspace afin de ne pas déclencher d'invites d'approbation interactives inutiles.
+
 ## Agent skills
 
 ### Issue tracker
