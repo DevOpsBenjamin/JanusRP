@@ -44,3 +44,9 @@ Réseau de nœuds (`locations`) et d'arêtes (`location_edges`) définissant les
 ### Mémoire Vectorielle & Indexation RAG (*Semantic Episodic Memory*)
 Stockage vectoriel des événements narratifs et souvenirs (`pgvector`, embeddings 1536d) indexé en HNSW pour la restitution contextuelle des antécédents marquants lors des délibérations du MJ.
 
+### Orchestrateur de Tour (*Turn Orchestrator*)
+Le moteur asynchrone Rust (Tokio) responsable de la coordination de la boucle de tour : acquisition du verrou de campagne, ouverture de la transaction SQLx, pré-injection du contexte, invocation de Muse Glimmer (MJ) et exécution MCP in-process, streaming de la prose de Qwen (La Plume) et commit atomique.
+
+### Événements de Flux SSE (*SSE Stream Events*)
+Protocole de messages multiplexés typés (`turn_start`, `mj_thinking`, `state_mutation`, `narration_chunk`, `turn_complete`, `error`) émis en temps réel sur la connexion HTTP SSE du tour pour synchroniser l'affichage narratif et l'état réactif du monde (graphe ReactFlow, fiches PNJ).
+
