@@ -1,15 +1,20 @@
 # JanusRP Agents Guide
 
-## Git & Version Control (Obligatoire)
+## Git & PR Workflow (Obligatoire)
 
-- **Toujours commiter et pusher** : Tout fichier créé ou modifié (ADR dans `docs/adr/`, `CONTEXT.md`, code source, documentation) lors du traitement ou de la résolution d'un ticket **DOIT être obligatoirement commité et pushé sur Git (`git add`, `git commit`, `git push`) AVANT de clôturer l'issue ou de terminer la session**.
-- **Zéro fichier non-commité en fin de ticket** : Vérifier systématiquement `git status` pour s'assurer que l'arbre de travail est propre et synchronisé avec le dépôt distant.
+- **Une branche par ticket / tâche** : Pour chaque ticket traité ou tâche, créer systématiquement une branche dédiée (ex: `feat/issue-<n>-<slug>`, `docs/issue-<n>-<slug>`, ou `chore/<slug>`). Ne jamais commiter directement sur `main`.
+- **Commit & Push sur la branche** : Commiter tous les fichiers créés/modifiés (ADR dans `docs/adr/`, `CONTEXT.md`, code source, documentation) avec un message conventionnel clair et pusher la branche (`git push origin <branch>`).
+- **Création de PR et Squash & Merge** :
+  1. Ouvrir une Pull Request via la CLI `gh` : `gh pr create --title "<type>: resolve issue #<n> - <title>" --body "Closes #<n>\n\n<résumé>"`.
+  2. Procéder au merge automatique en mode squash : `gh pr merge --squash --delete-branch`.
+  3. Revenir sur `main` et mettre à jour l'arbre local : `git checkout main && git pull origin main`.
+- **Zéro travail résiduel non-fusionné** : Vérifier systématiquement `git status` pour s'assurer que le workspace est propre, aligné sur `main` à jour et sans branche locale orpheline.
 
 ## Agent skills
 
 ### Issue tracker
 
-GitHub Issues via `gh` CLI. Voir `docs/agents/issue-tracker.md`.
+GitHub Issues & Pull Requests via `gh` CLI. Voir `docs/agents/issue-tracker.md`.
 
 ### Domain docs
 
