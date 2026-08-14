@@ -35,3 +35,12 @@ Fait saillant immuable consigné à l'issue de chaque tour notable, servant d'an
 ### Briefing Narratif (*Director Briefing*)
 Consigne scénaristique et stylistique explicite produite par le MJ (Muse Glimmer) à l'attention exclusive de la Plume (Qwen), définissant le ton, les réactions sensorielles et les dialogues à générer sans réévaluer les règles.
 
+### Campagne (*Campaign / World Instance*)
+Instance isolée d'un univers de jeu contenant son propre graphe de lieux, ses PNJ, son historique de tours et son état de progression.
+
+### Topologie Spatiale (*Spatial Topology*)
+Réseau de nœuds (`locations`) et d'arêtes (`location_edges`) définissant les chemins navigables, agrémenté de coordonnées 2D pour la restitution cartographique interactive (ReactFlow).
+
+### Mémoire Vectorielle & Indexation RAG (*Semantic Episodic Memory*)
+Stockage vectoriel des événements narratifs et souvenirs (`pgvector`, embeddings 1536d) indexé en HNSW pour la restitution contextuelle des antécédents marquants lors des délibérations du MJ.
+
