@@ -1,12 +1,12 @@
 services:
   ingress:
     image: nginx:alpine
-    container_name: janusrp-ingress
+    container_name: janusrp-ingress-dev
     restart: unless-stopped
     ports:
       - "80:80"
     volumes:
-      - ./nginx.ingress.prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx.ingress.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - frontend
       - server
@@ -14,7 +14,7 @@ services:
 
   postgres:
     image: pgvector/pgvector:pg16
-    container_name: janusrp-postgres
+    container_name: janusrp-postgres-dev
     restart: unless-stopped
     ports:
       - "5432:5432"
@@ -23,7 +23,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_dev_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d janusrp"]
       interval: 5s
@@ -32,7 +32,7 @@ services:
 
   adminer:
     image: adminer:latest
-    container_name: janusrp-adminer
+    container_name: janusrp-adminer-dev
     restart: unless-stopped
     environment:
       ADMINER_DEFAULT_SERVER: postgres
@@ -41,35 +41,49 @@ services:
         condition: service_healthy
 
   server:
-    container_name: janusrp-server
+    container_name: janusrp-server-dev
     build:
       context: ..
       dockerfile: docker/Dockerfile.server
-      target: production
-    restart: unless-stopped
+      target: development
     ports:
       - "3000:3000"
     environment:
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/janusrp
       PORT: 3000
       HOST: 0.0.0.0
-      RUST_LOG: info,janus_server=info
+      RUST_LOG: info,janus_server=debug
+    volumes:
+      - ../Cargo.toml:/app/Cargo.toml
+      - ../Cargo.lock:/app/Cargo.lock
+      - ../crates:/app/crates
+      - cargo_registry_cache:/usr/local/cargo/registry
+      - cargo_target_cache:/app/target
     depends_on:
       postgres:
         condition: service_healthy
 
   frontend:
-    container_name: janusrp-frontend
+    container_name: janusrp-frontend-dev
     build:
       context: ..
       dockerfile: docker/Dockerfile.frontend
-      target: production
-    restart: unless-stopped
+      target: development
     ports:
-      - "5173:80"
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3000
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0
     depends_on:
       - server
 
 volumes:
-  postgres_data:
+  postgres_dev_data:
+    driver: local
+  cargo_registry_cache:
+    driver: local
+  cargo_target_cache:
     driver: local

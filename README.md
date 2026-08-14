@@ -20,33 +20,46 @@ JanusRP est une plateforme de jeu de rôle immersif et sandbox narratif aliment�
 └── CONTEXT.md        # Glossaire du langage ubiquitaire du domaine
 ```
 
-## 🚀 Démarrage Rapide
+## 🚀 Démarrage
 
-### 1. Prérequis
-- Rust 1.80+ (`cargo`)
-- Node.js 20+ (`npm`)
-- Docker & Docker Compose
+### 1. 🐳 Mode Full Docker (Recommandé — Zéro installation locale requise)
 
-### 2. Démarrer la Base de Données
+#### A. Mode Utilisateur / Standalone (Plug & Play)
+Lance toute la stack (PostgreSQL + Backend Rust + Frontend Web Nginx) :
 ```bash
 docker compose -f docker/docker-compose.yml up -d
 ```
+- Interface Web : [http://localhost:5173](http://localhost:5173)
+- API Backend : [http://localhost:3000/health](http://localhost:3000/health)
 
-### 3. Lancer le Backend Rust
+#### B. Mode Développeur (Live-Reload à chaud)
+Lance toute la stack dans Docker avec rechargement automatique du code (`cargo watch` et Vite HMR) :
 ```bash
-cargo run --bin janus-server
+docker compose -f docker/docker-compose.dev.yml up
 ```
 
-### 4. Lancer le Frontend React
-```bash
-cd frontend
-npm install
-npm run dev
-```
+---
 
-### 5. Exécuter les Tests
+### 2. 💻 Mode Développement Local (Sans conteneurisation du code)
+
+1. Démarrer uniquement la base de données :
+   ```bash
+   docker compose -f docker/docker-compose.yml up -d postgres
+   ```
+2. Lancer le backend Rust :
+   ```bash
+   cargo run --bin janus-server
+   ```
+3. Lancer le frontend React :
+   ```bash
+   cd frontend && npm install && npm run dev
+   ```
+
+---
+
+### 🧪 Exécuter les Tests
 ```bash
-# Tests Backend
+# Tests Backend Rust
 cargo test --workspace
 
 # Build Frontend
