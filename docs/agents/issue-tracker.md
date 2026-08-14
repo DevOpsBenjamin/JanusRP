@@ -11,13 +11,13 @@ Issues, specs et Pull Requests pour ce repo vivent sur GitHub. Utiliser la CLI `
 - **Commenter une issue** : `gh issue comment <number> --body "..."`
 - **Gérer les labels** : `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
 - **Créer une Pull Request** : `gh pr create --title "..." --body "Closes #<number>\n\n<summary>"`
-- **Merger une PR** : `gh pr merge --squash --delete-branch` puis synchroniser avec `git checkout main && git pull origin main`.
+- **Merger une PR** : `gh pr merge` (stratégie squash et suppression de branche gérées par la configuration du repo) puis synchroniser avec `git checkout main && git pull origin main`.
 
 Infer the repo from `git remote -v` — `gh` does this automatically when run inside a clone.
 
 ## Pull requests as a delivery and resolution surface
 
-Toute livraison de code, de documentation ou de décision ADR passe par une Pull Request créée via `gh pr create` et fusionnée en mode squash (`gh pr merge --squash --delete-branch`).
+Toute livraison de code, de documentation ou de décision ADR passe par une Pull Request créée via `gh pr create` et fusionnée via `gh pr merge`.
 
 ## When a skill says "publish to the issue tracker"
 
@@ -40,7 +40,7 @@ Used by `/wayfinder`. The **map** is a single issue with **child** issues as tic
   1. **Commit & Push sur la branche** : `git add -A && git commit -m "<type>: <description>" && git push -u origin <branch>`.
   2. **Création & Merge de la Pull Request** :
      - `gh pr create --title "<type>: resolve issue #<n> - <title>" --body "Closes #<n>\n\n## Résolution\n\n<résumé>"`
-     - `gh pr merge --squash --delete-branch`
+     - `gh pr merge`
      - `git checkout main && git pull origin main`
   3. **Commentaire de résolution & Clôture** : Poster le commentaire détaillé sur l'issue (`gh issue comment <n> --body "<answer>"`) et clore si non fait automatiquement (`gh issue close <n>`).
   4. **Mise à jour de la carte** : Ajouter le pointeur de contexte dans Decisions-so-far et cocher le ticket dans la map issue.
