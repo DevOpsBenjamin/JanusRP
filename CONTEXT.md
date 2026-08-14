@@ -71,3 +71,19 @@ Liaison navigable orientée ou bidirectionnelle entre deux lieux dans le graphe,
 ### Assistance IA de Création (*AI Content Assistant*)
 Module de génération procédurale assistée par LLM produisant des structures JSON pour pré-remplir automatiquement les profils psychologiques de PNJ, les intrigues secrètes, les descriptions immersives de lieux et les dynamiques relationnelles.
 
+### Fournisseur d'Embeddings (*Embedding Provider*)
+Composant d'abstraction backend Rust (`EmbeddingProvider`) capable de vectoriser du texte via une API HTTP compatible OpenAI (`/v1/embeddings`, 1536d) ou un moteur ONNX local in-process (`fastembed-rs`) sans coupler l'architecture à un modèle unique.
+
+### Souvenir Individuel de PNJ (*NPC Episodic Memory*)
+Trace mémorielle persistante associée à un PNJ spécifique, caractérisée par un texte récapitulatif, une polarité émotionnelle, un coefficient d'importance et son vecteur d'embedding, restituée lors des interactions futures avec ce PNJ.
+
+### Restitution RAG Hybride (*Hybrid Memory Retrieval*)
+Mécanisme combinant la pré-injection systématique des antécédents les plus similaires (Top-3 cosinus > 0.70 avec atténuation temporelle) dans le contexte initial de Muse Glimmer et la mise à disposition d'un outil MCP `search_memories` pour les investigations historiques approfondies.
+
+### Consolidation Narrative & Résumé Glissant (*Chapter Memory Consolidation*)
+Synthèse périodique (tous les 10 à 15 tours ou lors d'un déplacement d'envergure) enregistrée dans les métadonnées de campagne (`current_chapter_summary`) pour maintenir une vision macroscopique du récit sans saturer le stockage vectoriel d'événements élémentaires.
+
+### Outil de Recherche Mémorielle (*search_memories MCP Tool*)
+Outil MCP permettant à Muse Glimmer d'interroger sémantiquement la mémoire de campagne et les souvenirs de PNJ à l'aide d'une requête textuelle et de filtres optionnels par PNJ ou lieu.
+
+
