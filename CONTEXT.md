@@ -86,4 +86,14 @@ Synthèse périodique (tous les 10 à 15 tours ou lors d'un déplacement d'enver
 ### Outil de Recherche Mémorielle (*search_memories MCP Tool*)
 Outil MCP permettant à Muse Glimmer d'interroger sémantiquement la mémoire de campagne et les souvenirs de PNJ à l'aide d'une requête textuelle et de filtres optionnels par PNJ ou lieu.
 
+### Tranche Verticale (*Vertical Slice*)
+Incrément de développement traversant l'intégralité de la pile applicative (PostgreSQL -> MCP Backend Rust -> LLM -> Frontend React) pour produire une version immédiatement jouable, testable et démontrable d'un sous-ensemble cohérent de fonctionnalités.
 
+### Client LLM Découplé (*LlmClient / MockLlmClient*)
+Abstraction unifiée du client de génération de modèles de langage permettant d'interroger des moteurs réels (vLLM, Aphrodite, Ollama, API OpenAI-compatibles) en production et d'exécuter des tests automatisés ultra-rapides et déterministes en CI sans GPU via le rejeu de scénarios pré-enregistrés (*fixtures*).
+
+### Scénario d'Amorce (*Seed Dataset / Starter Campaign*)
+Campagne de référence pré-configurée injectée automatiquement lors des migrations initiales de la base de données (*"Les Brumes de Val-Corbeau"*), contenant un graphe de 3 lieux, 2 PNJ avec secrets/jauges et une arête verrouillée pour valider immédiatement la boucle de tour.
+
+### Monorepo Cargo Workspace
+Organisation modulaire du code source Rust en plusieurs crates spécialisés (`server`, `core`, `mcp`, `db`, `llm`) partageant un verrou de dépendances unique et cohabitant avec le package frontend React/Vite.
