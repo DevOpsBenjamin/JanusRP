@@ -1,0 +1,49 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/core",
+    "crates/db",
+    "crates/mcp",
+    "crates/llm",
+    "crates/server",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["JanusRP Team"]
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+# Internal workspace crates
+janus-core = { path = "crates/core" }
+janus-db = { path = "crates/db" }
+janus-mcp = { path = "crates/mcp" }
+janus-llm = { path = "crates/llm" }
+
+# Async & Web
+tokio = { version = "1.38", features = ["full"] }
+tokio-util = { version = "0.7" }
+tokio-stream = { version = "0.1", features = ["sync"] }
+async-trait = "0.1"
+futures-util = "0.3"
+axum = { version = "0.7", features = ["macros"] }
+tower = { version = "0.4", features = ["util"] }
+tower-http = { version = "0.5", features = ["cors", "trace", "fs"] }
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono", "json"] }
+
+# Serialization & Utilities
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+uuid = { version = "1.8", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "1.0"
+anyhow = "1.0"
+dotenvy = "0.15"
+
+# Tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
