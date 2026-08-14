@@ -59,3 +59,15 @@ Parseur incrémental côté frontend capable de segmenter le flux de tokens en b
 ### Nœud de Lieu ReactFlow (*LocationNode*)
 Composant cartographique personnalisé représentant un lieu du monde dans ReactFlow avec ses badges d'état (lieu actif du PJ, présence de PNJ, liaisons navigables et centrage caméra dynamique).
 
+### Éditeur de Monde (*World Editor*)
+Espace interactif de modélisation cartographique et sociale (`/campaigns/:id/editor`) permettant de construire visuellement le graphe de navigation (ReactFlow), d'agencer les lieux et de configurer l'ensemble des entités de jeu hors session active.
+
+### Roster de PNJ (*Campaign NPC Roster*)
+Registre centralisé et catalogue des personnages non-joueurs d'une campagne dans l'éditeur, permettant leur création, la configuration de leurs secrets/jauges et leur assignation géographique par glisser-déposer sur les nœuds de lieux.
+
+### Arête Topologique Éditée (*Location Edge / Spatial Link*)
+Liaison navigable orientée ou bidirectionnelle entre deux lieux dans le graphe, caractérisée par ses conditions de franchissement (`is_locked`), sa description de transit et sa connectivité ReactFlow.
+
+### Assistance IA de Création (*AI Content Assistant*)
+Module de génération procédurale assistée par LLM produisant des structures JSON pour pré-remplir automatiquement les profils psychologiques de PNJ, les intrigues secrètes, les descriptions immersives de lieux et les dynamiques relationnelles.
+
