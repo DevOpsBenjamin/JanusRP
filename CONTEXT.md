@@ -25,3 +25,13 @@ L'ensemble des fonctions exposées par le backend pour permettre au MJ d'interro
 
 ### Graphe du Monde (*World Graph*)
 La structure relationnelle représentant les lieux (nœuds), leurs liaisons topologiques (arêtes), ainsi que la présence actuelle des PNJ et objets dans ces lieux.
+
+### Jauges Relationnelles (*Relationship Gauges*)
+Les métriques numériques bornées (`Affinité`, `Confiance`, sur une échelle de -100 à +100) et qualitatives (`Humeur`) mesurant la disposition psychologique et l'attitude d'un PNJ envers le PJ.
+
+### Événement Narratif Persistant (*Narrative Event Log*)
+Fait saillant immuable consigné à l'issue de chaque tour notable, servant d'ancrage chronologique et de base d'indexation pour la mémoire épisodique du monde.
+
+### Briefing Narratif (*Director Briefing*)
+Consigne scénaristique et stylistique explicite produite par le MJ (Muse Glimmer) à l'attention exclusive de la Plume (Qwen), définissant le ton, les réactions sensorielles et les dialogues à générer sans réévaluer les règles.
+
