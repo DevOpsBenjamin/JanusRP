@@ -1,0 +1,61 @@
+# ==========================================
+# Base Builder / Common Environment
+# ==========================================
+FROM rust:latest AS base
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config \
+    libssl-dev \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# ==========================================
+# Development Target (with cargo-watch)
+# ==========================================
+FROM base AS development
+
+# Install cargo-watch for hot-reloading
+RUN cargo install cargo-watch --locked
+
+COPY Cargo.toml Cargo.lock ./
+COPY crates ./crates
+
+ENV RUST_LOG=info,janus_server=debug
+EXPOSE 3000
+
+CMD ["cargo", "watch", "-x", "run --bin janus-server"]
+
+# ==========================================
+# Release Builder
+# ==========================================
+FROM base AS builder
+
+COPY Cargo.toml Cargo.lock ./
+COPY crates ./crates
+
+RUN cargo build --release --bin janus-server
+
+# ==========================================
+# Production Runtime
+# ==========================================
+FROM debian:bookworm-slim AS production
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libssl3 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY --from=builder /app/target/release/janus-server /usr/local/bin/janus-server
+
+ENV PORT=3000
+ENV HOST=0.0.0.0
+ENV RUST_LOG=info,janus_server=info
+
+EXPOSE 3000
+
+ENTRYPOINT ["janus-server"]
