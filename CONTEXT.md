@@ -50,3 +50,12 @@ Le moteur asynchrone Rust (Tokio) responsable de la coordination de la boucle de
 ### Événements de Flux SSE (*SSE Stream Events*)
 Protocole de messages multiplexés typés (`turn_start`, `mj_thinking`, `state_mutation`, `narration_chunk`, `turn_complete`, `error`) émis en temps réel sur la connexion HTTP SSE du tour pour synchroniser l'affichage narratif et l'état réactif du monde (graphe ReactFlow, fiches PNJ).
 
+### Balises Sémantiques Narratives (*RP Tags DSL*)
+Grammaire de balises de registres narratifs (`<narrative>`, `<dialogue>`, `<thought>`, `<comm>`, `<sensory>`, `<document>`, `<illustration>`) générée par La Plume (Qwen) pour structurer visuellement et dynamiquement la mise en scène du roleplay.
+
+### Parser Streaming Tolérant (*StreamingRPParser*)
+Parseur incrémental côté frontend capable de segmenter le flux de tokens en blocs de composants React typés en temps réel, résistant aux balises en cours d'ouverture, aux coupures et aux éléments de texte libre orphelins.
+
+### Nœud de Lieu ReactFlow (*LocationNode*)
+Composant cartographique personnalisé représentant un lieu du monde dans ReactFlow avec ses badges d'état (lieu actif du PJ, présence de PNJ, liaisons navigables et centrage caméra dynamique).
+
