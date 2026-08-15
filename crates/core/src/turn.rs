@@ -16,21 +16,16 @@ pub struct Turn {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
 #[cfg_attr(feature = "sqlx", sqlx(type_name = "VARCHAR", rename_all = "snake_case"))]
 pub enum EventSignificance {
     Minor,
+    #[default]
     Notable,
     Major,
     Critical,
-}
-
-impl Default for EventSignificance {
-    fn default() -> Self {
-        Self::Notable
-    }
 }
 
 impl std::fmt::Display for EventSignificance {
