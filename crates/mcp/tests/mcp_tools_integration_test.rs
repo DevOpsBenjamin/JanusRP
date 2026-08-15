@@ -34,7 +34,16 @@ async fn test_mcp_get_location_context_and_secrets() {
         }
     };
 
-    let server = McpServer::new(pool);
+    let server = McpServer::new(pool.clone());
+
+    // Reset player position to Salle Commune
+    janus_db::campaigns::update_current_location(
+        &pool,
+        VAL_CORBEAU_CAMPAIGN_ID,
+        Some(SALLE_COMMUNE_LOCATION_ID),
+    )
+    .await
+    .unwrap();
 
     // 1. Get location context without explicit location_id (default to campaign current location)
     let call = ToolCall {

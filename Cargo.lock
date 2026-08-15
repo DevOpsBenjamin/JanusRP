@@ -976,8 +976,10 @@ name = "janus-llm"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "axum",
  "futures-util",
  "janus-core",
+ "janus-mcp",
  "reqwest",
  "serde",
  "serde_json",
