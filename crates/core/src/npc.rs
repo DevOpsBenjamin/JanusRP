@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct Npc {
     pub id: Uuid,
     pub campaign_id: Uuid,
@@ -21,6 +22,7 @@ pub struct Npc {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
 pub struct NpcRelationship {
     pub id: Uuid,
     pub npc_id: Uuid,

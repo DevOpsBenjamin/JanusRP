@@ -35,6 +35,9 @@ async fn main() -> anyhow::Result<()> {
         match janus_db::create_pool(&url).await {
             Ok(pool) => {
                 info!("Database connected");
+                if let Err(e) = janus_db::run_migrations(&pool).await {
+                    tracing::error!("Failed to run database migrations: {}", e);
+                }
                 Some(pool)
             }
             Err(e) => {

@@ -6,7 +6,7 @@ authors.workspace = true
 license.workspace = true
 
 [dependencies]
-janus-core = { workspace = true }
+janus-core = { workspace = true, features = ["sqlx"] }
 sqlx = { workspace = true }
 uuid = { workspace = true }
 chrono = { workspace = true }
