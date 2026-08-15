@@ -1,10 +1,87 @@
+use janus_core::StateMutation;
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ToolDefinition {
     pub name: String,
     pub description: String,
     pub parameters: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ToolCall {
+    pub name: String,
+    pub arguments: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolExecutionResult {
+    pub tool_name: String,
+    pub success: bool,
+    pub result: serde_json::Value,
+    pub mutation: Option<StateMutation>,
+    pub error: Option<String>,
+}
+
+impl ToolExecutionResult {
+    pub fn success(tool_name: impl Into<String>, result: serde_json::Value, mutation: Option<StateMutation>) -> Self {
+        Self {
+            tool_name: tool_name.into(),
+            success: true,
+            result,
+            mutation,
+            error: None,
+        }
+    }
+
+    pub fn failure(tool_name: impl Into<String>, error_message: impl Into<String>) -> Self {
+        let msg = error_message.into();
+        Self {
+            tool_name: tool_name.into(),
+            success: false,
+            result: serde_json::json!({ "error": msg }),
+            mutation: None,
+            error: Some(msg),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetLocationContextArgs {
+    pub location_id: Option<Uuid>,
+    pub include_secrets: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InspectNpcDetailsArgs {
+    pub npc_id: Uuid,
+    pub query_focus: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateNpcRelationArgs {
+    pub npc_id: Uuid,
+    pub delta_affinity: Option<i32>,
+    pub delta_trust: Option<i32>,
+    pub mood: Option<String>,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MoveToLocationArgs {
+    pub target_location_id: Uuid,
+    pub force: Option<bool>,
+    pub movement_narration_hint: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LogEventArgs {
+    pub summary: String,
+    pub significance: Option<String>,
+    pub involved_npc_ids: Option<Vec<Uuid>>,
+    pub location_id: Option<Uuid>,
+    pub tags: Option<Vec<String>>,
 }
 
 pub fn get_turn_tools_schema() -> Vec<ToolDefinition> {
@@ -92,5 +169,23 @@ mod tests {
         assert!(names.contains(&"update_npc_relation".to_string()));
         assert!(names.contains(&"move_to_location".to_string()));
         assert!(names.contains(&"log_event".to_string()));
+    }
+
+    #[test]
+    fn test_deserialize_args() {
+        let loc_args: GetLocationContextArgs = serde_json::from_value(serde_json::json!({
+            "include_secrets": true
+        })).unwrap();
+        assert_eq!(loc_args.include_secrets, Some(true));
+        assert_eq!(loc_args.location_id, None);
+
+        let update_args: UpdateNpcRelationArgs = serde_json::from_value(serde_json::json!({
+            "npc_id": "00000000-0000-0000-0000-000000000001",
+            "delta_affinity": 15,
+            "reason": "Test"
+        })).unwrap();
+        assert_eq!(update_args.delta_affinity, Some(15));
+        assert_eq!(update_args.delta_trust, None);
+        assert_eq!(update_args.reason, "Test");
     }
 }

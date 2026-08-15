@@ -221,40 +221,57 @@ pub async fn update_relationship_deltas(
     interaction_summary: Option<&str>,
     turn: i32,
 ) -> Result<NpcRelationship, DbError> {
-    let current = get_relationship(pool, npc_id)
-        .await?
-        .ok_or_else(|| DbError::NotFound {
-            table: "npc_relationships",
-            id: npc_id.to_string(),
-        })?;
+    let current = get_relationship(pool, npc_id).await?;
 
-    let new_affinity = (current.affinity + delta_affinity).clamp(-100, 100);
-    let new_trust = (current.trust + delta_trust).clamp(-100, 100);
-    let new_mood = mood.unwrap_or(&current.mood);
-    let new_summary = interaction_summary.or(current.interaction_summary.as_deref());
+    let (current_affinity, current_trust, current_mood, current_summary) = match &current {
+        Some(rel) => (
+            rel.affinity,
+            rel.trust,
+            rel.mood.as_str(),
+            rel.interaction_summary.as_deref(),
+        ),
+        None => (0, 0, "neutre", None),
+    };
 
-    let updated = sqlx::query_as::<_, NpcRelationship>(
-        r#"
-        UPDATE npc_relationships
-        SET affinity = $1,
-            trust = $2,
-            mood = $3,
-            last_interaction_turn = $4,
-            interaction_summary = $5,
-            updated_at = NOW()
-        WHERE npc_id = $6
-        RETURNING id, npc_id, affinity, trust, mood, last_interaction_turn,
-                  interaction_summary, metadata, updated_at
-        "#,
-    )
-    .bind(new_affinity)
-    .bind(new_trust)
-    .bind(new_mood)
-    .bind(turn)
-    .bind(new_summary)
-    .bind(npc_id)
-    .fetch_one(pool)
-    .await?;
+    let new_affinity = (current_affinity + delta_affinity).clamp(-100, 100);
+    let new_trust = (current_trust + delta_trust).clamp(-100, 100);
+    let new_mood = mood.unwrap_or(current_mood);
+    let new_summary = interaction_summary.or(current_summary);
 
-    Ok(updated)
+    if current.is_none() {
+        create_relationship(
+            pool,
+            npc_id,
+            new_affinity,
+            new_trust,
+            new_mood,
+            new_summary,
+        )
+        .await
+    } else {
+        let updated = sqlx::query_as::<_, NpcRelationship>(
+            r#"
+            UPDATE npc_relationships
+            SET affinity = $1,
+                trust = $2,
+                mood = $3,
+                last_interaction_turn = $4,
+                interaction_summary = $5,
+                updated_at = NOW()
+            WHERE npc_id = $6
+            RETURNING id, npc_id, affinity, trust, mood, last_interaction_turn,
+                      interaction_summary, metadata, updated_at
+            "#,
+        )
+        .bind(new_affinity)
+        .bind(new_trust)
+        .bind(new_mood)
+        .bind(turn)
+        .bind(new_summary)
+        .bind(npc_id)
+        .fetch_one(pool)
+        .await?;
+
+        Ok(updated)
+    }
 }
