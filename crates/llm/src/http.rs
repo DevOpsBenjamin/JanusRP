@@ -28,7 +28,7 @@ impl Default for HttpLlmConfig {
             qwen_base_url: "http://localhost:8001/v1".to_string(),
             qwen_model: "qwen-3.8".to_string(),
             qwen_api_key: None,
-            timeout_seconds: 60,
+            timeout_seconds: 120,
             temperature_arbitration: Some(0.2),
             temperature_narration: Some(0.7),
         }
@@ -154,6 +154,7 @@ impl LlmClient for HttpLlmClient {
             ],
             "tools": tools_json,
             "tool_choice": "auto",
+            "max_tokens": 1500,
         });
 
         if let Some(temp) = self.config.temperature_arbitration {
@@ -216,7 +217,22 @@ impl LlmClient for HttpLlmClient {
             }
         }
 
-        let (reasoning, director_briefing) = extract_reasoning_and_briefing(raw_content);
+        let (mut reasoning, mut director_briefing) = extract_reasoning_and_briefing(raw_content);
+
+        // Fallback for models emitting reasoning_content (vMLX, DeepSeek, Glimmer)
+        if reasoning.is_empty() {
+            if let Some(rc) = message.get("reasoning_content").and_then(|s| s.as_str()) {
+                reasoning = rc.to_string();
+            }
+        }
+
+        if director_briefing.is_empty() {
+            if !reasoning.is_empty() {
+                director_briefing = reasoning.clone();
+            } else {
+                director_briefing = "Décris la scène et les réactions des personnages présents suite aux actions du joueur.".to_string();
+            }
+        }
 
         Ok(MjArbitrationResponse {
             reasoning,
@@ -253,6 +269,7 @@ impl LlmClient for HttpLlmClient {
                 }
             ],
             "stream": true,
+            "max_tokens": 1500,
         });
 
         if let Some(temp) = self.config.temperature_narration {
