@@ -42,6 +42,7 @@ interface GameState {
 
   // Actions
   initStarterCampaign: () => void;
+  fetchRemoteCampaign: (campaignId?: string) => Promise<void>;
   setSelectedLocationId: (locationId: string | null) => void;
   startTurn: (playerInput: string) => void;
   handleTurnStreamEvent: (event: TurnStreamEvent) => void;
@@ -189,6 +190,28 @@ export const useGameStore = create<GameState>((set, get) => ({
       error: null,
       currentTurn: initialCurrentTurn,
     });
+  },
+
+  fetchRemoteCampaign: async (campaignId?: string) => {
+    const id = campaignId || get().campaign.id;
+    try {
+      const res = await fetch(`/api/campaigns/${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.campaign) {
+          set((state) => ({
+            campaign: {
+              ...state.campaign,
+              ...data.campaign,
+            },
+            currentLocationId:
+              data.campaign.current_location_id || state.currentLocationId,
+          }));
+        }
+      }
+    } catch {
+      // Fallback silently to in-memory state
+    }
   },
 
   setSelectedLocationId: (selectedLocationId) => set({ selectedLocationId }),

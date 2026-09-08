@@ -38,6 +38,9 @@ async fn main() -> anyhow::Result<()> {
                 if let Err(e) = janus_db::run_migrations(&pool).await {
                     tracing::error!("Failed to run database migrations: {}", e);
                 }
+                if let Err(e) = janus_db::seed_val_corbeau(&pool).await {
+                    tracing::error!("Failed to seed starter campaign: {}", e);
+                }
                 Some(pool)
             }
             Err(e) => {
@@ -49,7 +52,27 @@ async fn main() -> anyhow::Result<()> {
         None
     };
 
-    let llm = Arc::new(MockLlmClient::new());
+    let llm: Arc<dyn janus_llm::LlmClient> = if std::env::var("GLIMMER_BASE_URL").is_ok()
+        || std::env::var("LLM_BASE_URL").is_ok()
+    {
+        match janus_llm::HttpLlmClient::from_env() {
+            Ok(client) => {
+                info!("Initialized HttpLlmClient with external LLM endpoints");
+                Arc::new(client)
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "Failed to initialize HttpLlmClient, falling back to MockLlmClient: {}",
+                    e
+                );
+                Arc::new(MockLlmClient::new())
+            }
+        }
+    } else {
+        info!("Initialized MockLlmClient for local/deterministic mode");
+        Arc::new(MockLlmClient::new())
+    };
+
     let state = AppState::new(db_pool, llm);
 
     let cors = CorsLayer::new()
