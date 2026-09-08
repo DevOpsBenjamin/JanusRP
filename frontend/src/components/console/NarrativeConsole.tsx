@@ -1,13 +1,16 @@
-import React, { useEffect, useRef } from 'react';
-import { AlertCircle, Loader2, Sparkles, User } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { AlertCircle, Brain, Loader2, Sparkles, User } from 'lucide-react';
 import { useGameStore } from '../../store';
+import { TurnHistoryItem } from '../../types';
 import { parseRPStream } from '../../utils/streamingRpParser';
 import { RPBlockRenderer } from '../narrative/RPBlockRenderer';
 import { MutationCard } from '../narrative/MutationCard';
+import { TurnDebugModal } from '../debug/TurnDebugModal';
 
 export const NarrativeConsole: React.FC = () => {
   const { turns, currentTurn, status, error } = useGameStore();
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [inspectingTurn, setInspectingTurn] = useState<TurnHistoryItem | null>(null);
 
   // Parse streaming chunks in real-time
   const currentBlocks = parseRPStream(currentTurn.rawNarration);
@@ -67,9 +70,29 @@ export const NarrativeConsole: React.FC = () => {
 
           {/* Narrative Response */}
           <div className="rounded-xl border border-slate-800/80 bg-slate-900/60 p-5 shadow-sm space-y-2">
-            {turn.blocks.map((block, idx) => (
-              <RPBlockRenderer key={idx} block={block} />
-            ))}
+            <div className="flex items-center justify-between border-b border-slate-800/50 pb-2 mb-2">
+              <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider">
+                Tour #{turn.turnNumber} — La Plume
+              </span>
+              <button
+                onClick={() => setInspectingTurn(turn)}
+                className="flex items-center space-x-1.5 rounded-md bg-slate-800/80 hover:bg-amber-500/20 hover:text-amber-300 hover:border-amber-500/40 border border-slate-700/60 px-2 py-0.5 text-[11px] font-medium text-slate-300 transition-all cursor-pointer shadow-xs"
+                title="Inspecter le raisonnement du MJ, les outils MCP et le briefing"
+              >
+                <Brain className="h-3 w-3 text-amber-400" />
+                <span>Inspecter Tour #{turn.turnNumber}</span>
+              </button>
+            </div>
+
+            {turn.blocks.length > 0 ? (
+              turn.blocks.map((block, idx) => (
+                <RPBlockRenderer key={idx} block={block} />
+              ))
+            ) : (
+              <p className="font-serif text-xs italic text-slate-400">
+                {turn.rawNarration || "(Narration vide)"}
+              </p>
+            )}
           </div>
         </div>
       ))}
@@ -135,6 +158,12 @@ export const NarrativeConsole: React.FC = () => {
       )}
 
       <div ref={bottomRef} />
+
+      {/* Turn Inspection / Debug Modal */}
+      <TurnDebugModal
+        turn={inspectingTurn}
+        onClose={() => setInspectingTurn(null)}
+      />
     </div>
   );
 };

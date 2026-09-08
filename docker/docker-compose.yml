@@ -58,7 +58,7 @@ services:
       GLIMMER_MODEL: mlx/Muse-Glimmer-30B-JANG_6M-CRACK
       QWEN_BASE_URL: http://host.docker.internal:8080/v1
       QWEN_MODEL: mlx/Qwen3.8-27B-8bit
-      LLM_TIMEOUT_SECONDS: "120"
+      LLM_TIMEOUT_SECONDS: "180"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

@@ -209,6 +209,29 @@ export const useGameStore = create<GameState>((set, get) => ({
           }));
         }
       }
+
+      // Also fetch turn history from backend
+      const turnsRes = await fetch(`/api/campaigns/${id}/turns`);
+      if (turnsRes.ok) {
+        const remoteTurns = await turnsRes.json();
+        if (Array.isArray(remoteTurns) && remoteTurns.length > 0) {
+          const sorted = [...remoteTurns].sort((a, b) => a.turn_number - b.turn_number);
+          const historyItems: TurnHistoryItem[] = sorted.map((t) => ({
+            turnId: t.id,
+            turnNumber: t.turn_number,
+            playerInput: t.player_input,
+            rawNarration: t.final_narration,
+            blocks: parseRPStream(t.final_narration),
+            mutations: t.metadata?.mutations || [],
+            turnSummary: t.mj_reasoning,
+            mjReasoning: t.mj_reasoning,
+            mjBriefing: t.mj_briefing,
+            toolCalls: t.metadata?.tool_calls || [],
+            createdAt: t.created_at,
+          }));
+          set({ turns: historyItems });
+        }
+      }
     } catch {
       // Fallback silently to in-memory state
     }
@@ -315,6 +338,10 @@ export const useGameStore = create<GameState>((set, get) => ({
           blocks: parsedBlocks,
           mutations: currentTurn.mutations,
           turnSummary: event.turn_summary,
+          mjReasoning: event.mj_reasoning || event.turn_summary,
+          mjBriefing: event.mj_briefing,
+          toolCalls: event.tool_calls,
+          createdAt: new Date().toISOString(),
         };
 
         set({

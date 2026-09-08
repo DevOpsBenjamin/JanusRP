@@ -37,12 +37,18 @@ pub fn to_sse_event(event: &TurnStreamEvent) -> Event {
             turn_id,
             current_location_id,
             turn_summary,
+            mj_reasoning,
+            mj_briefing,
+            tool_calls,
         } => serde_json::json!({
             "event": "turn_complete",
             "turn_id": turn_id,
             "current_location_id": current_location_id,
             "current_location": current_location_id,
             "turn_summary": turn_summary,
+            "mj_reasoning": mj_reasoning,
+            "mj_briefing": mj_briefing,
+            "tool_calls": tool_calls,
         }),
         TurnStreamEvent::Error {
             code,
