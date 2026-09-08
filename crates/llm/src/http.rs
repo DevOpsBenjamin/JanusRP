@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::client::{LlmClient, NarrationStream};
 use crate::error::LlmError;
-use crate::types::{DirectorBriefing, MjArbitrationResponse, ToolCall, TurnPrompt};
+use crate::types::{DirectorBriefing, MjArbitrationResponse, ToolCall, ToolOutput, TurnPrompt};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HttpLlmConfig {
@@ -95,7 +95,7 @@ pub struct HttpLlmClient {
 impl HttpLlmClient {
     pub fn new(config: HttpLlmConfig) -> Result<Self, LlmError> {
         let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(config.timeout_seconds))
+            .connect_timeout(std::time::Duration::from_secs(30))
             .build()?;
         Ok(Self { client, config })
     }
@@ -161,7 +161,11 @@ impl LlmClient for HttpLlmClient {
             payload["temperature"] = serde_json::json!(temp);
         }
 
-        let mut req = self.client.post(&url).json(&payload);
+        let mut req = self
+            .client
+            .post(&url)
+            .json(&payload)
+            .timeout(std::time::Duration::from_secs(self.config.timeout_seconds.max(300)));
         if let Some(ref key) = self.config.glimmer_api_key {
             req = req.bearer_auth(key);
         }
@@ -187,75 +191,138 @@ impl LlmClient for HttpLlmClient {
             .get("message")
             .ok_or_else(|| LlmError::InvalidResponse("Missing 'message' in choice".to_string()))?;
 
-        let raw_content = message
-            .get("content")
-            .and_then(|c| c.as_str())
-            .unwrap_or_default();
+        Ok(parse_mj_response_from_message(message))
+    }
 
-        let mut tool_calls = Vec::new();
-        if let Some(calls) = message.get("tool_calls").and_then(|tc| tc.as_array()) {
-            for call in calls {
-                if let Some(func) = call.get("function") {
-                    let name = func
-                        .get("name")
-                        .and_then(|n| n.as_str())
-                        .unwrap_or_default()
-                        .to_string();
+    async fn continue_turn_arbitration(
+        &self,
+        prompt: &TurnPrompt,
+        initial_response: &MjArbitrationResponse,
+        tool_outputs: &[ToolOutput],
+    ) -> Result<MjArbitrationResponse, LlmError> {
+        let url = format!(
+            "{}/chat/completions",
+            self.config.glimmer_base_url.trim_end_matches('/')
+        );
 
-                    let arguments = match func.get("arguments") {
-                        Some(serde_json::Value::String(s)) => {
-                            serde_json::from_str::<serde_json::Value>(s).unwrap_or_else(|_| {
-                                serde_json::json!({ "raw": s })
-                            })
-                        }
-                        Some(v) => v.clone(),
-                        None => serde_json::Value::Null,
-                    };
+        let user_content = format!(
+            "Context:\n{}\n\nPlayer Input:\n{}",
+            prompt.context_summary, prompt.player_input
+        );
 
-                    tool_calls.push(ToolCall { name, arguments });
-                }
-            }
-        }
+        let mut messages = vec![
+            serde_json::json!({
+                "role": "system",
+                "content": prompt.system_prompt,
+            }),
+            serde_json::json!({
+                "role": "user",
+                "content": user_content,
+            }),
+        ];
 
-        let (mut reasoning, mut director_briefing) = extract_reasoning_and_briefing(raw_content);
-
-        // Fallback for models emitting reasoning_content (vMLX, DeepSeek, Glimmer)
-        if reasoning.is_empty() {
-            if let Some(rc) = message.get("reasoning_content").and_then(|s| s.as_str()) {
-                reasoning = rc.to_string();
-            }
-        }
-
-        if director_briefing.is_empty() {
-            if !reasoning.is_empty() {
-                let markers = [
-                    "Provide Director Briefing:",
-                    "Director Briefing:",
-                    "Consigne du Directeur:",
-                    "Consignes du Directeur:",
-                    "Briefing pour La Plume:",
-                    "Briefing narratif:",
-                    "Briefing:",
-                ];
-                for marker in &markers {
-                    if let Some(pos) = reasoning.find(marker) {
-                        director_briefing = reasoning[pos + marker.len()..].trim().to_string();
-                        break;
+        // Format assistant message with tool calls
+        let raw_tool_calls: Vec<serde_json::Value> = initial_response
+            .tool_calls
+            .iter()
+            .enumerate()
+            .map(|(idx, tc)| {
+                let call_id = tc.id.clone().unwrap_or_else(|| format!("call_{}", idx));
+                serde_json::json!({
+                    "id": call_id,
+                    "type": "function",
+                    "function": {
+                        "name": tc.name,
+                        "arguments": serde_json::to_string(&tc.arguments).unwrap_or_default(),
                     }
-                }
-                if director_briefing.is_empty() {
-                    director_briefing = "Décris la scène et les réactions des personnages présents suite aux actions du joueur.".to_string();
-                }
+                })
+            })
+            .collect();
+
+        let assistant_content = if initial_response.reasoning.is_empty() {
+            serde_json::Value::Null
+        } else {
+            serde_json::json!(initial_response.reasoning)
+        };
+
+        messages.push(serde_json::json!({
+            "role": "assistant",
+            "content": assistant_content,
+            "tool_calls": raw_tool_calls,
+        }));
+
+        // Format tool response messages
+        for (idx, output) in tool_outputs.iter().enumerate() {
+            let call_id = if !output.call_id.is_empty() {
+                output.call_id.clone()
             } else {
-                director_briefing = "Décris la scène et les réactions des personnages présents suite aux actions du joueur.".to_string();
+                format!("call_{}", idx)
+            };
+            messages.push(serde_json::json!({
+                "role": "tool",
+                "tool_call_id": call_id,
+                "name": output.name,
+                "content": serde_json::to_string(&output.result).unwrap_or_default(),
+            }));
+        }
+
+        let mut payload = serde_json::json!({
+            "model": self.config.glimmer_model,
+            "messages": messages,
+            "max_tokens": 2500,
+        });
+
+        if let Some(temp) = self.config.temperature_arbitration {
+            payload["temperature"] = serde_json::json!(temp);
+        }
+
+        let mut req = self
+            .client
+            .post(&url)
+            .json(&payload)
+            .timeout(std::time::Duration::from_secs(self.config.timeout_seconds.max(300)));
+        if let Some(ref key) = self.config.glimmer_api_key {
+            req = req.bearer_auth(key);
+        }
+
+        let res = req.send().await.map_err(LlmError::Http)?;
+        let status = res.status();
+        if !status.is_success() {
+            let err_body = res.text().await.unwrap_or_default();
+            return Err(LlmError::Api {
+                status: status.as_u16(),
+                message: err_body,
+            });
+        }
+
+        let body: serde_json::Value = res.json().await.map_err(LlmError::Http)?;
+        let choice = body
+            .get("choices")
+            .and_then(|c| c.get(0))
+            .ok_or_else(|| LlmError::InvalidResponse("Missing 'choices[0]' in API response".to_string()))?;
+
+        let message = choice
+            .get("message")
+            .ok_or_else(|| LlmError::InvalidResponse("Missing 'message' in choice".to_string()))?;
+
+        let mut resp = parse_mj_response_from_message(message);
+
+        // Retain reasoning from initial response if follow-up only had briefing
+        if resp.reasoning.is_empty() && !initial_response.reasoning.is_empty() {
+            resp.reasoning = initial_response.reasoning.clone();
+        } else if !initial_response.reasoning.is_empty() && !resp.reasoning.is_empty() {
+            resp.reasoning = format!("{}\n\n[Suite post-outils] :\n{}", initial_response.reasoning, resp.reasoning);
+        }
+
+        if resp.director_briefing.is_empty() {
+            if !initial_response.director_briefing.is_empty() {
+                resp.director_briefing = initial_response.director_briefing.clone();
+            } else {
+                resp.director_briefing = "Décris la scène et les réactions des personnages présents suite aux actions du joueur.".to_string();
             }
         }
 
-        Ok(MjArbitrationResponse {
-            reasoning,
-            tool_calls,
-            director_briefing,
-        })
+        Ok(resp)
     }
 
     async fn stream_narration(
@@ -267,11 +334,23 @@ impl LlmClient for HttpLlmClient {
             self.config.qwen_base_url.trim_end_matches('/')
         );
 
-        let user_content = format!(
+        let mut user_content = format!(
             "Consigne du Directeur:\n{}\n\nContexte:\n{}",
             briefing.briefing_instructions,
             serde_json::to_string_pretty(&briefing.context).unwrap_or_default()
         );
+
+        if !briefing.recent_narrations.is_empty() {
+            user_content.push_str("\n\nÉléments narratifs déjà posés lors des tours récents (NE PAS RÉPÉTER le décor ambiant, va de l'avant) :\n");
+            for (idx, prev) in briefing.recent_narrations.iter().enumerate() {
+                let snippet = if prev.len() > 300 {
+                    format!("{}...", &prev[..300])
+                } else {
+                    prev.clone()
+                };
+                user_content.push_str(&format!("* Tour précédent #{} :\n{}\n", idx + 1, snippet.trim()));
+            }
+        }
 
         let mut payload = serde_json::json!({
             "model": self.config.qwen_model,
@@ -286,14 +365,18 @@ impl LlmClient for HttpLlmClient {
                 }
             ],
             "stream": true,
-            "max_tokens": 3500,
+            "max_tokens": 5000,
         });
 
         if let Some(temp) = self.config.temperature_narration {
             payload["temperature"] = serde_json::json!(temp);
         }
 
-        let mut req = self.client.post(&url).json(&payload);
+        let mut req = self
+            .client
+            .post(&url)
+            .json(&payload)
+            .timeout(std::time::Duration::from_secs(self.config.timeout_seconds.max(600)));
         if let Some(ref key) = self.config.qwen_api_key {
             req = req.bearer_auth(key);
         }
@@ -381,6 +464,74 @@ impl LlmClient for HttpLlmClient {
 
         let receiver_stream = tokio_stream::wrappers::ReceiverStream::new(rx);
         Ok(Box::pin(receiver_stream))
+    }
+}
+
+pub fn parse_mj_response_from_message(message: &serde_json::Value) -> MjArbitrationResponse {
+    let raw_content = message
+        .get("content")
+        .and_then(|c| c.as_str())
+        .unwrap_or_default();
+
+    let mut tool_calls = Vec::new();
+    if let Some(calls) = message.get("tool_calls").and_then(|tc| tc.as_array()) {
+        for call in calls {
+            if let Some(func) = call.get("function") {
+                let id = call.get("id").and_then(|i| i.as_str()).map(|s| s.to_string());
+                let name = func
+                    .get("name")
+                    .and_then(|n| n.as_str())
+                    .unwrap_or_default()
+                    .to_string();
+
+                let arguments = match func.get("arguments") {
+                    Some(serde_json::Value::String(s)) => {
+                        serde_json::from_str::<serde_json::Value>(s).unwrap_or_else(|_| {
+                            serde_json::json!({ "raw": s })
+                        })
+                    }
+                    Some(v) => v.clone(),
+                    None => serde_json::Value::Null,
+                };
+
+                tool_calls.push(ToolCall { id, name, arguments });
+            }
+        }
+    }
+
+    let (mut reasoning, mut director_briefing) = extract_reasoning_and_briefing(raw_content);
+
+    // Fallback for models emitting reasoning_content (vMLX, DeepSeek, Glimmer)
+    if reasoning.is_empty() {
+        if let Some(rc) = message.get("reasoning_content").and_then(|s| s.as_str()) {
+            reasoning = rc.to_string();
+        }
+    }
+
+    if director_briefing.is_empty() {
+        if !reasoning.is_empty() {
+            let markers = [
+                "Provide Director Briefing:",
+                "Director Briefing:",
+                "Consigne du Directeur:",
+                "Consignes du Directeur:",
+                "Briefing pour La Plume:",
+                "Briefing narratif:",
+                "Briefing:",
+            ];
+            for marker in &markers {
+                if let Some(pos) = reasoning.find(marker) {
+                    director_briefing = reasoning[pos + marker.len()..].trim().to_string();
+                    break;
+                }
+            }
+        }
+    }
+
+    MjArbitrationResponse {
+        reasoning,
+        tool_calls,
+        director_briefing,
     }
 }
 

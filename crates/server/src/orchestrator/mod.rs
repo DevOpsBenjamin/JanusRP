@@ -11,7 +11,7 @@ use tracing::{debug, error, info, warn};
 use uuid::Uuid;
 
 use janus_core::{StateMutation, TurnStreamEvent};
-use janus_llm::types::{DirectorBriefing, ToolCall};
+use janus_llm::types::{DirectorBriefing, ToolCall, ToolOutput};
 
 use crate::orchestrator::context::{ConnectedLocationInfo, ContextBuilder, PresentNpcInfo};
 use crate::orchestrator::prompts::QWEN_SYSTEM_PROMPT;
@@ -198,7 +198,7 @@ impl TurnOrchestrator {
             &player_input,
         );
 
-        let mj_response = tokio::select! {
+        let mut mj_response = tokio::select! {
             _ = cancel_token.cancelled() => {
                 info!("Turn cancelled during arbitration");
                 return;
@@ -225,6 +225,9 @@ impl TurnOrchestrator {
 
         // 5. Execute MCP tools & emit mutations
         let mut executed_mutations: Vec<StateMutation> = Vec::new();
+        let mut tool_outputs: Vec<ToolOutput> = Vec::new();
+        let mut has_inspection_tool = false;
+
         if !mj_response.tool_calls.is_empty() {
             if tx
                 .send(TurnStreamEvent::MjThinking {
@@ -240,10 +243,16 @@ impl TurnOrchestrator {
                 return;
             }
 
-            for tool_call in &mj_response.tool_calls {
+            for (idx, tool_call) in mj_response.tool_calls.iter().enumerate() {
                 if cancel_token.is_cancelled() {
                     return;
                 }
+
+                if tool_call.name == "inspect_npc_details" || tool_call.name == "get_location_context" {
+                    has_inspection_tool = true;
+                }
+
+                let call_id = tool_call.id.clone().unwrap_or_else(|| format!("call_{}", idx));
 
                 if let Some(ref pool) = self.state.db {
                     let mcp_call = janus_mcp::ToolCall {
@@ -271,9 +280,19 @@ impl TurnOrchestrator {
                                 }
                                 executed_mutations.push(mutation);
                             }
+                            tool_outputs.push(ToolOutput {
+                                call_id,
+                                name: tool_call.name.clone(),
+                                result: result.result,
+                            });
                         }
                         Err(err) => {
                             warn!(tool = %tool_call.name, error = %err, "MCP tool execution warning");
+                            tool_outputs.push(ToolOutput {
+                                call_id,
+                                name: tool_call.name.clone(),
+                                result: serde_json::json!({ "error": err.to_string() }),
+                            });
                         }
                     }
                 } else {
@@ -287,6 +306,63 @@ impl TurnOrchestrator {
                             return;
                         }
                         executed_mutations.push(mut_event);
+                    }
+                    tool_outputs.push(ToolOutput {
+                        call_id,
+                        name: tool_call.name.clone(),
+                        result: serde_json::json!({ "success": true }),
+                    });
+                }
+            }
+
+            // 5b. Tool calling follow-up loop: If inspection was requested or briefing is empty/fallback,
+            // call continue_turn_arbitration to let the GM finish reasoning with the tool results.
+            let needs_follow_up = has_inspection_tool
+                || mj_response.director_briefing.trim().is_empty()
+                || mj_response.director_briefing.contains("Décris la scène et les réactions des personnages présents suite aux actions du joueur.");
+
+            if needs_follow_up && !tool_outputs.is_empty() {
+                let _ = tx
+                    .send(TurnStreamEvent::MjThinking {
+                        status: "evaluating_tool_results".to_string(),
+                        summary: Some("Analyse des informations obtenues et finalisation de l'arbitrage".to_string()),
+                    })
+                    .await;
+
+                match self
+                    .state
+                    .llm
+                    .continue_turn_arbitration(&turn_prompt, &mj_response, &tool_outputs)
+                    .await
+                {
+                    Ok(follow_up) => {
+                        debug!("Follow-up arbitration succeeded");
+                        // Execute any additional mutations emitted in the follow-up
+                        for additional_call in &follow_up.tool_calls {
+                            if let Some(ref pool) = self.state.db {
+                                let mcp_call = janus_mcp::ToolCall {
+                                    name: additional_call.name.clone(),
+                                    arguments: additional_call.arguments.clone(),
+                                };
+                                if let Ok(res) = janus_mcp::McpExecutor::execute_tool(
+                                    pool,
+                                    campaign_id,
+                                    turn_index,
+                                    &mcp_call,
+                                )
+                                .await
+                                {
+                                    if let Some(mutation) = res.mutation {
+                                        let _ = tx.send(TurnStreamEvent::StateMutation(mutation.clone())).await;
+                                        executed_mutations.push(mutation);
+                                    }
+                                }
+                            }
+                        }
+                        mj_response = follow_up;
+                    }
+                    Err(err) => {
+                        warn!("Follow-up arbitration error, keeping initial: {}", err);
                     }
                 }
             }
@@ -309,6 +385,12 @@ impl TurnOrchestrator {
         }
 
         // 7. Stream narration from Qwen
+        let recent_narrations: Vec<String> = recent_turns
+            .iter()
+            .map(|t| t.final_narration.clone())
+            .filter(|s| !s.trim().is_empty())
+            .collect();
+
         let director_briefing = DirectorBriefing {
             system_prompt: QWEN_SYSTEM_PROMPT.to_string(),
             briefing_instructions: mj_response.director_briefing.clone(),
@@ -318,6 +400,7 @@ impl TurnOrchestrator {
                 "mutations": executed_mutations,
                 "turn_index": turn_index,
             }),
+            recent_narrations,
         };
 
         let mut narration_stream = tokio::select! {

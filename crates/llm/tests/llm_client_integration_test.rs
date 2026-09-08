@@ -182,6 +182,7 @@ async fn test_http_llm_client_arbitration_and_streaming() {
         system_prompt: "Plume system instructions".to_string(),
         briefing_instructions: arb.director_briefing,
         context: json!({ "npc": "Elena" }),
+        recent_narrations: Vec::new(),
     };
 
     let mut stream = client
@@ -248,6 +249,7 @@ async fn test_mock_llm_client_determinism_and_recording() {
         system_prompt: "Plume".to_string(),
         briefing_instructions: res.director_briefing,
         context: json!({}),
+        recent_narrations: Vec::new(),
     };
 
     let mut stream = mock.stream_narration(&briefing).await.unwrap();
