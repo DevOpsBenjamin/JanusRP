@@ -71,6 +71,7 @@ impl LlmClient for MockLlmClient {
             reasoning: "Le joueur a salué Elena avec respect. Elle apprécie la politesse.".to_string(),
             tool_calls: vec![
                 ToolCall {
+                    id: None,
                     name: "update_npc_relation".to_string(),
                     arguments: serde_json::json!({
                         "npc_id": "d0000000-0000-0000-0000-000000000001",
@@ -80,6 +81,7 @@ impl LlmClient for MockLlmClient {
                     }),
                 },
                 ToolCall {
+                    id: None,
                     name: "log_event".to_string(),
                     arguments: serde_json::json!({
                         "summary": "Le joueur a brisé la glace avec Elena la tavernière.",
@@ -138,6 +140,7 @@ mod tests {
             system_prompt: "Plume System".to_string(),
             briefing_instructions: res.director_briefing,
             context: serde_json::json!({}),
+            recent_narrations: Vec::new(),
         };
 
         let mut stream = client.stream_narration(&briefing).await.unwrap();

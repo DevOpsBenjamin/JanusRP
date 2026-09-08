@@ -129,6 +129,7 @@ async fn test_e2e_playable_core_loop_demonstration() {
     let movement_arbitration = MjArbitrationResponse {
         reasoning: "Le joueur franchit la porte battante et sort dans l'arrière-cour.".to_string(),
         tool_calls: vec![ToolCall {
+            id: None,
             name: "move_to_location".to_string(),
             arguments: serde_json::json!({
                 "target_location_id": ARRIERE_COUR_LOCATION_ID,
