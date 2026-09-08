@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Compass, MessageSquare, Send, Sparkles, Square } from 'lucide-react';
 import { useGameStore } from './store';
 import { useTurnStream } from './hooks/useTurnStream';
@@ -8,8 +8,12 @@ import { ContextInspector } from './components/inspector/ContextInspector';
 
 export const App: React.FC = () => {
   const [inputAction, setInputAction] = useState('');
-  const { campaign, status, currentLocationId, locations } = useGameStore();
+  const { campaign, status, currentLocationId, locations, fetchRemoteCampaign } = useGameStore();
   const { submitTurn, abort, isStreaming } = useTurnStream();
+
+  useEffect(() => {
+    fetchRemoteCampaign(campaign.id);
+  }, [campaign.id, fetchRemoteCampaign]);
 
   const currentLoc = locations.find((l) => l.id === currentLocationId);
 
