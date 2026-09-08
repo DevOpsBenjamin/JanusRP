@@ -109,7 +109,11 @@ export type TurnStreamEvent =
       event: 'turn_complete';
       turn_id: string;
       current_location_id?: string;
+      current_location?: string;
       turn_summary: string;
+      mj_reasoning?: string;
+      mj_briefing?: string;
+      tool_calls?: any;
     }
   | {
       event: 'error';
@@ -177,4 +181,8 @@ export interface TurnHistoryItem {
   blocks: RPBlock[];
   mutations: StateMutation[];
   turnSummary?: string;
+  mjReasoning?: string;
+  mjBriefing?: string;
+  toolCalls?: any[];
+  createdAt?: string;
 }

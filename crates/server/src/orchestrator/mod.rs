@@ -407,11 +407,15 @@ impl TurnOrchestrator {
         }
 
         // 9. Emit turn_complete
+        let tool_calls_val = serde_json::to_value(&mj_response.tool_calls).ok();
         let _ = tx
             .send(TurnStreamEvent::TurnComplete {
                 turn_id,
                 current_location_id: final_location_id,
-                turn_summary: mj_response.reasoning,
+                turn_summary: mj_response.reasoning.clone(),
+                mj_reasoning: Some(mj_response.reasoning),
+                mj_briefing: Some(mj_response.director_briefing),
+                tool_calls: tool_calls_val,
             })
             .await;
 

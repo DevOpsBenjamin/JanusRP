@@ -154,7 +154,7 @@ impl LlmClient for HttpLlmClient {
             ],
             "tools": tools_json,
             "tool_choice": "auto",
-            "max_tokens": 1500,
+            "max_tokens": 2500,
         });
 
         if let Some(temp) = self.config.temperature_arbitration {
@@ -228,7 +228,24 @@ impl LlmClient for HttpLlmClient {
 
         if director_briefing.is_empty() {
             if !reasoning.is_empty() {
-                director_briefing = reasoning.clone();
+                let markers = [
+                    "Provide Director Briefing:",
+                    "Director Briefing:",
+                    "Consigne du Directeur:",
+                    "Consignes du Directeur:",
+                    "Briefing pour La Plume:",
+                    "Briefing narratif:",
+                    "Briefing:",
+                ];
+                for marker in &markers {
+                    if let Some(pos) = reasoning.find(marker) {
+                        director_briefing = reasoning[pos + marker.len()..].trim().to_string();
+                        break;
+                    }
+                }
+                if director_briefing.is_empty() {
+                    director_briefing = "Décris la scène et les réactions des personnages présents suite aux actions du joueur.".to_string();
+                }
             } else {
                 director_briefing = "Décris la scène et les réactions des personnages présents suite aux actions du joueur.".to_string();
             }
@@ -269,7 +286,7 @@ impl LlmClient for HttpLlmClient {
                 }
             ],
             "stream": true,
-            "max_tokens": 1500,
+            "max_tokens": 3500,
         });
 
         if let Some(temp) = self.config.temperature_narration {
@@ -436,7 +453,28 @@ pub fn extract_reasoning_and_briefing(content: &str) -> (String, String) {
         return (reasoning, briefing);
     }
 
-    // 3. Fallback: plain text
+    // 3. Plain text markers check ("Provide Director Briefing:", "Director Briefing:", "Consigne du Directeur:")
+    let markers = [
+        "Provide Director Briefing:",
+        "Director Briefing:",
+        "Consigne du Directeur:",
+        "Consignes du Directeur:",
+        "Briefing pour La Plume:",
+        "Briefing narratif:",
+        "Briefing:",
+    ];
+
+    for marker in &markers {
+        if let Some(pos) = trimmed.find(marker) {
+            let briefing = trimmed[pos + marker.len()..].trim().to_string();
+            let reasoning = trimmed[..pos].trim().to_string();
+            if !briefing.is_empty() {
+                return (reasoning, briefing);
+            }
+        }
+    }
+
+    // 4. Fallback: plain text
     (trimmed.to_string(), trimmed.to_string())
 }
 
@@ -466,6 +504,14 @@ mod tests {
         let (reasoning, briefing) = extract_reasoning_and_briefing(raw);
         assert_eq!(reasoning, raw);
         assert_eq!(briefing, raw);
+    }
+
+    #[test]
+    fn test_extract_reasoning_and_briefing_marker() {
+        let raw = "Analysing player actions. Feasibility is high.\nProvide Director Briefing: Describe Elena smiling and serving the fresh mead.";
+        let (reasoning, briefing) = extract_reasoning_and_briefing(raw);
+        assert_eq!(reasoning, "Analysing player actions. Feasibility is high.");
+        assert_eq!(briefing, "Describe Elena smiling and serving the fresh mead.");
     }
 
     #[test]

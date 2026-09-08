@@ -46,6 +46,9 @@ pub enum TurnStreamEvent {
         turn_id: Uuid,
         current_location_id: Option<Uuid>,
         turn_summary: String,
+        mj_reasoning: Option<String>,
+        mj_briefing: Option<String>,
+        tool_calls: Option<serde_json::Value>,
     },
     Error {
         code: String,
