@@ -73,7 +73,7 @@ impl LlmClient for MockLlmClient {
                 ToolCall {
                     name: "update_npc_relation".to_string(),
                     arguments: serde_json::json!({
-                        "npc_id": "00000000-0000-0000-0000-000000000002",
+                        "npc_id": "d0000000-0000-0000-0000-000000000001",
                         "delta_affinity": 10,
                         "mood": "souriante",
                         "reason": "Salutation respectueuse et chaleureuse"
