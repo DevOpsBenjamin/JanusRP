@@ -97,3 +97,6 @@ Campagne de référence pré-configurée injectée automatiquement lors des migr
 
 ### Monorepo Cargo Workspace
 Organisation modulaire du code source Rust en plusieurs crates spécialisés (`server`, `core`, `mcp`, `db`, `llm`) partageant un verrou de dépendances unique et cohabitant avec le package frontend React/Vite.
+
+### Verrou de Concurrence de Campagne (*Campaign Concurrency Lock*)
+Mécanisme de verrouillage asynchrone en mémoire (`tokio::sync::Mutex` par campagne dans `AppState`) garantissant la stricte sérialisation des tours sur une instance d'univers donnée et rejetant immédiatement toute sollicitation concurrente avec le statut `HTTP 409 Conflict`.

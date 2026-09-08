@@ -1011,6 +1011,7 @@ dependencies = [
  "anyhow",
  "axum",
  "dotenvy",
+ "futures-util",
  "janus-core",
  "janus-db",
  "janus-llm",

@@ -53,3 +53,16 @@ pub enum TurnStreamEvent {
         retryable: bool,
     },
 }
+
+impl TurnStreamEvent {
+    pub fn event_type(&self) -> &'static str {
+        match self {
+            TurnStreamEvent::TurnStart { .. } => "turn_start",
+            TurnStreamEvent::MjThinking { .. } => "mj_thinking",
+            TurnStreamEvent::StateMutation(_) => "state_mutation",
+            TurnStreamEvent::NarrationChunk { .. } => "narration_chunk",
+            TurnStreamEvent::TurnComplete { .. } => "turn_complete",
+            TurnStreamEvent::Error { .. } => "error",
+        }
+    }
+}
